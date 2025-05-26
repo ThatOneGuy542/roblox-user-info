@@ -1,7 +1,7 @@
 from flask import Flask, request, render_template
 import requests
-from datetime import datetime, timedelta
-from dateutil import parser  # Add dateutil for flexible parsing
+from datetime import datetime
+from dateutil import parser
 
 app = Flask(__name__)
 
@@ -26,34 +26,22 @@ def get_user_info(cookie):
         robux_data = robux_response.json()
         robux_balance = robux_data["robux"]
 
-        # Get Robux spent (past year)
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=365)
-        transactions_url = f"https://economy.roblox.com/v2/users/{user_id}/transactions?transactionType=Purchase&limit=100"
-        transactions_response = session.get(transactions_url)
-        transactions_response.raise_for_status()
-        transactions_data = transactions_response.json()
-        robux_spent = 0
-        for tx in transactions_data.get("data", []):
-            if tx["currency"]["type"] == "Robux" and tx["currency"]["amount"] < 0:
-                try:
-                    # Parse transaction date flexibly
-                    tx_date = parser.parse(tx["created"])
-                    if start_date <= tx_date.replace(tzinfo=None) <= end_date:
-                        robux_spent += abs(tx["currency"]["amount"])
-                except ValueError:
-                    continue  # Skip malformed dates
+        # Get Robux summary (total spent in past year)
+        summary_url = f"https://economy.roblox.com/v2/users/{user_id}/transaction-totals?timeFrame=Year"
+        summary_response = session.get(summary_url)
+        summary_response.raise_for_status()
+        summary_data = summary_response.json()
+        robux_summary = summary_data.get("spentRobux", 0)
 
-        # Get recently played games (presence-based)
+        # Get current activity
         presence_url = "https://presence.roblox.com/v1/presence/users"
         presence_response = session.post(presence_url, json={"userIds": [user_id]})
         if presence_response.status_code == 429:
-            recent_games = ["Rate limit exceeded, try again later"]
+            current_activity = ["Rate limit exceeded, try again later"]
         else:
             presence_response.raise_for_status()
             presence_data = presence_response.json()
-            last_game = presence_data["userPresences"][0].get("lastLocation", "No recent games")
-            recent_games = [last_game] if last_game != "No recent games" else ["No recent games"]
+            current_activity = [presence_data["userPresences"][0].get("lastLocation", "No current activity")]
 
         # Get premium status
         premium_url = f"https://premiumfeatures.roblox.com/v1/users/{user_id}/validate-membership"
@@ -65,7 +53,6 @@ def get_user_info(cookie):
         creation_date_response = session.get(creation_date_url)
         creation_date_response.raise_for_status()
         creation_date_data = creation_date_response.json()
-        # Parse creation date flexibly
         creation_date = parser.parse(creation_date_data["created"]).strftime("%Y-%m-%d %H:%M:%S")
 
         # Get avatar image
@@ -95,14 +82,14 @@ def get_user_info(cookie):
             "username": username,
             "display_name": display_name,
             "robux": robux_balance,
-            "robux_spent": robux_spent,
+            "robux_summary": robux_summary,
             "premium": premium_status,
             "creation_date": creation_date,
             "user_id": user_id,
             "avatar_url": avatar_image_url,
             "groups_owned": groups_owned,
             "group_robux": group_robux,
-            "recent_games": recent_games,
+            "current_activity": current_activity,
             "error": None
         }
     except requests.exceptions.HTTPError as e:
