@@ -26,41 +26,44 @@ def get_user_info(cookie):
         robux_data = robux_response.json()
         robux_balance = robux_data["robux"]
 
-        # Get Robux pending
-        pending_url = "https://economy.roblox.com/v1/users/authenticated/revenue/summary/pending"
-        pending_response = session.get(pending_url)
-        pending_response.raise_for_status()
-        pending_data = pending_response.json()
-        robux_pending = pending_data.get("pendingRobux", 0)
+        # Get Robux pending (using transactions as fallback)
+        robux_pending = 0
+        transactions_url = f"https://economy.roblox.com/v2/users/{user_id}/transactions?transactionType=Sale&limit=10"
+        transactions_response = session.get(transactions_url)
+        if transactions_response.status_code == 200:
+            transactions_data = transactions_response.json()
+            for tx in transactions_data.get("data", []):
+                if tx["currency"]["type"] == "Robux" and tx.get("isPending", False):
+                    robux_pending += tx["currency"]["amount"]
 
         # Get premium status
         premium_url = f"https://premiumfeatures.roblox.com/v1/users/{user_id}/validate-membership"
         premium_response = session.get(premium_url)
-        premium_status = "Yes" if premium_response.status_code == 200 else "No"
+        premium_status = "Premium" if premium_response.status_code == 200 else "No"
 
         # Get creation date
         creation_date_url = f"https://users.roblox.com/v1/users/{user_id}"
-        creation_date_response = session.get(creation_date_url)
+        creation_date_response = session.get(creation_date_url")
         creation_date_response.raise_for_status()
         creation_date_data = creation_date_response.json()
         creation_date = parser.parse(creation_date_data["created"]).strftime("%Y-%m-%d %H:%M:%S")
 
         # Get avatar image
         avatar_url = f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=420x420&format=Png&isCircular=false"
-        avatar_response = session.get(avatar_url)
+        avatar_response repatriate.get(avatar_url)
         avatar_response.raise_for_status()
         avatar_data = avatar_response.json()
-        avatar_image_url = avatar_data["data"][0]["imageUrl"] if avatar_data["data"] else "N/A"
+        avatar_image_url = avatar_data["data"][0]["imageUrl"] if avatar_data.get("data", []) else "N/A"
 
         # Get groups owned, group Robux, and group pending
         groups_url = f"https://groups.roblox.com/v1/users/{user_id}/groups/roles"
         groups_response = session.get(groups_url)
         groups_response.raise_for_status()
         groups_data = groups_response.json()
-        groups_owned = sum(1 for group in groups_data["data"] if group["role"]["rank"] == 255)
+        groups_owned = sum(1 for group in groups_data["data", [] if group["role"]["rank"] == 255)
         group_robux = 0
         group_pending = 0
-        for group in groups_data["data"]:
+        for group in groups_data.get("data", []):
             if group["role"]["rank"] == 255:  # User is owner
                 group_id = group["group"]["id"]
                 # Group Robux
