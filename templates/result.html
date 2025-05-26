@@ -26,20 +26,8 @@
                             <span class="value">{{ result.robux }}</span>
                         </div>
                         <div class="stat slide-in">
-                            <span class="label">Pending Robux</span>
-                            <span class="value">{{ result.pending_robux }}</span>
-                        </div>
-                        <div class="stat slide-in">
-                            <span class="label">Summary</span>
-                            <span class="value">{{ result.summary }}</span>
-                        </div>
-                        <div class="stat slide-in">
-                            <span class="label">User's RAP</span>
-                            <span class="value">{{ result.rap }}</span>
-                        </div>
-                        <div class="stat slide-in">
-                            <span class="label">Credit</span>
-                            <span class="value">{{ result.credit }}</span>
+                            <span class="label">Robux Spent (Past Year)</span>
+                            <span class="value">{{ result.robux_spent }}</span>
                         </div>
                         <div class="stat slide-in">
                             <span class="label">Groups Owned</span>
@@ -65,7 +53,7 @@
                     <div class="section slide-in">
                         <h3>Recently Played Games</h3>
                         <ul>
-                            {% for game in result.recently_played %}
+                            {% for game in result.recent_games %}
                                 <li>{{ game }}</li>
                             {% endfor %}
                         </ul>
