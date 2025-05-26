@@ -1,6 +1,7 @@
 from flask import Flask, request, render_template
 import requests
 from datetime import datetime, timedelta
+from dateutil import parser  # Add dateutil for flexible parsing
 
 app = Flask(__name__)
 
@@ -35,9 +36,13 @@ def get_user_info(cookie):
         robux_spent = 0
         for tx in transactions_data.get("data", []):
             if tx["currency"]["type"] == "Robux" and tx["currency"]["amount"] < 0:
-                tx_date = datetime.strptime(tx["created"], "%Y-%m-%dT%H:%M:%S.%fZ")
-                if start_date <= tx_date <= end_date:
-                    robux_spent += abs(tx["currency"]["amount"])
+                try:
+                    # Parse transaction date flexibly
+                    tx_date = parser.parse(tx["created"])
+                    if start_date <= tx_date.replace(tzinfo=None) <= end_date:
+                        robux_spent += abs(tx["currency"]["amount"])
+                except ValueError:
+                    continue  # Skip malformed dates
 
         # Get recently played games (presence-based)
         presence_url = "https://presence.roblox.com/v1/presence/users"
@@ -60,7 +65,8 @@ def get_user_info(cookie):
         creation_date_response = session.get(creation_date_url)
         creation_date_response.raise_for_status()
         creation_date_data = creation_date_response.json()
-        creation_date = datetime.strptime(creation_date_data["created"], "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%Y-%m-%d %H:%M:%S")
+        # Parse creation date flexibly
+        creation_date = parser.parse(creation_date_data["created"]).strftime("%Y-%m-%d %H:%M:%S")
 
         # Get avatar image
         avatar_url = f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=420x420&format=Png&isCircular=false"
