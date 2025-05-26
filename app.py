@@ -1,7 +1,7 @@
 from flask import Flask, request, render_template
 import requests
 from datetime import datetime, timedelta
-from dateutil import parser
+from dateutil import parser  # Add dateutil for flexible parsing
 
 app = Flask(__name__)
 
@@ -26,24 +26,34 @@ def get_user_info(cookie):
         robux_data = robux_response.json()
         robux_balance = robux_data["robux"]
 
-        # Get Robux summary (total spent in past year)
-        summary_url = f"https://economy.roblox.com/v1/users/{user_id}/transaction-totals?timeFilter=Year"
-        summary_response = session.get(summary_url)
-        summary_response.raise_for_status()
-        summary_data = summary_response.json()
-        robux_summary = summary_data.get("spentRobux", 0)
+        # Get Robux spent (past year)
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=365)
+        transactions_url = f"https://economy.roblox.com/v2/users/{user_id}/transactions?transactionType=Purchase&limit=100"
+        transactions_response = session.get(transactions_url)
+        transactions_response.raise_for_status()
+        transactions_data = transactions_response.json()
+        robux_spent = 0
+        for tx in transactions_data.get("data", []):
+            if tx["currency"]["type"] == "Robux" and tx["currency"]["amount"] < 0:
+                try:
+                    # Parse transaction date flexibly
+                    tx_date = parser.parse(tx["created"])
+                    if start_date <= tx_date.replace(tzinfo=None) <= end_date:
+                        robux_spent += abs(tx["currency"]["amount"])
+                except ValueError:
+                    continue  # Skip malformed dates
 
-        # Get recently played games
-        games_url = f"https://games.roblox.com/v1/games/recent?userId={user_id}&limit=5"
-        games_response = session.get(games_url)
-        if games_response.status_code == 429:
+        # Get recently played games (presence-based)
+        presence_url = "https://presence.roblox.com/v1/presence/users"
+        presence_response = session.post(presence_url, json={"userIds": [user_id]})
+        if presence_response.status_code == 429:
             recent_games = ["Rate limit exceeded, try again later"]
         else:
-            games_response.raise_for_status()
-            games_data = games_response.json()
-            recent_games = [game["name"] for game in games_data.get("data", [])]
-            if not recent_games:
-                recent_games = ["No recent games"]
+            presence_response.raise_for_status()
+            presence_data = presence_response.json()
+            last_game = presence_data["userPresences"][0].get("lastLocation", "No recent games")
+            recent_games = [last_game] if last_game != "No recent games" else ["No recent games"]
 
         # Get premium status
         premium_url = f"https://premiumfeatures.roblox.com/v1/users/{user_id}/validate-membership"
@@ -55,6 +65,7 @@ def get_user_info(cookie):
         creation_date_response = session.get(creation_date_url)
         creation_date_response.raise_for_status()
         creation_date_data = creation_date_response.json()
+        # Parse creation date flexibly
         creation_date = parser.parse(creation_date_data["created"]).strftime("%Y-%m-%d %H:%M:%S")
 
         # Get avatar image
@@ -84,7 +95,7 @@ def get_user_info(cookie):
             "username": username,
             "display_name": display_name,
             "robux": robux_balance,
-            "robux_summary": robux_summary,  # Changed to robux_summary
+            "robux_spent": robux_spent,
             "premium": premium_status,
             "creation_date": creation_date,
             "user_id": user_id,
