@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roblox User Info - Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="background"></div>
+    <div class="container">
+        <h1 class="fade-in">Roblox User Information</h1>
+        {% if result.error %}
+            <p class="error slide-in">{{ result.error }}</p>
+        {% else %}
+            <div class="user-info fade-in">
+                <div class="avatar-section">
+                    <img src="{{ result.avatar_url }}" alt="User Avatar" class="avatar">
+                </div>
+                <div class="info-section">
+                    <h2 class="slide-in">{{ result.username }}</h2>
+                    <p class="display-name slide-in">@{{ result.display_name }}</p>
+                    <div class="stats-grid">
+                        <div class="stat slide-in">
+                            <span class="label">Robux</span>
+                            <span class="value">{{ result.robux }}</span>
+                        </div>
+                        <div class="stat slide-in">
+                            <span class="label">Pending Robux</span>
+                            <span class="value">{{ result.pending_robux }}</span>
+                        </div>
+                        <div class="stat slide-in">
+                            <span class="label">Summary</span>
+                            <span class="value">{{ result.summary }}</span>
+                        </div>
+                        <div class="stat slide-in">
+                            <span class="label">User's RAP</span>
+                            <span class="value">{{ result.rap }}</span>
+                        </div>
+                        <div class="stat slide-in">
+                            <span class="label">Credit</span>
+                            <span class="value">{{ result.credit }}</span>
+                        </div>
+                        <div class="stat slide-in">
+                            <span class="label">Groups Owned</span>
+                            <span class="value">{{ result.groups_owned }}</span>
+                        </div>
+                        <div class="stat slide-in">
+                            <span class="label">Group Robux</span>
+                            <span class="value">{{ result.group_robux }}</span>
+                        </div>
+                        <div class="stat slide-in">
+                            <span class="label">Premium</span>
+                            <span class="value">{{ result.premium }}</span>
+                        </div>
+                        <div class="stat slide-in">
+                            <span class="label">Creation Date</span>
+                            <span class="value">{{ result.creation_date }}</span>
+                        </div>
+                        <div class="stat slide-in">
+                            <span class="label">User ID</span>
+                            <span class="value">{{ result.user_id }}</span>
+                        </div>
+                    </div>
+                    <div class="section slide-in">
+                        <h3>Recently Played Games</h3>
+                        <ul>
+                            {% for game in result.recently_played %}
+                                <li>{{ game }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        <a href="/" class="back-link slide-in">Back</a>
+    </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
