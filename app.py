@@ -26,15 +26,15 @@ def get_user_info(cookie):
         robux_data = robux_response.json()
         robux_balance = robux_data["robux"]
 
-        # Get Robux pending (using transactions as fallback)
+        # Get Robux info (using transactions as fallback)
         robux_pending = 0
         transactions_url = f"https://economy.roblox.com/v2/users/{user_id}/transactions?transactionType=Sale&limit=10"
         transactions_response = session.get(transactions_url)
         if transactions_response.status_code == 200:
             transactions_data = transactions_response.json()
-            for tx in transactions_data.get("data", []):
-                if tx["currency"]["type"] == "Robux" and tx.get("isPending", False):
-                    robux_pending += tx["currency"]["amount"]
+            for transaction in transactions_data.get("data", []):
+                if transaction["currency"]["type"] == "Robux" and transaction.get("isPending", False):
+                    robux_pending += transaction["currency"]["amount"]
 
         # Get premium status
         premium_url = f"https://premiumfeatures.roblox.com/v1/users/{user_id}/validate-membership"
@@ -79,9 +79,6 @@ def get_user_info(cookie):
                     group_pending_data = group_pending_response.json()
                     group_pending += group_pending_data.get("pendingRobux", 0)
 
-        # Get credit balance (approximated from Robux)
-        credit_balance = round(robux_balance * 0.0035, 2)  # Roblox exchange rate: 1 Robux ≈ $0.0035
-
         # Get email verification status
         email_url = "https://accountsettings.roblox.com/v1/email"
         email_response = session.get(email_url)
@@ -110,7 +107,6 @@ def get_user_info(cookie):
             "groups_owned": groups_owned,
             "group_robux": group_robux,
             "group_pending": group_pending,
-            "credit_balance": credit_balance,
             "email_verified": email_verified,
             "rap": rap,
             "error": None
