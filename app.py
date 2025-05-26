@@ -39,31 +39,31 @@ def get_user_info(cookie):
         # Get premium status
         premium_url = f"https://premiumfeatures.roblox.com/v1/users/{user_id}/validate-membership"
         premium_response = session.get(premium_url)
-        premium_status = "Premium" if premium_response.status_code == 200 else "No"
+        premium_status = "Yes" if premium_response.status_code == 200 else "No"
 
         # Get creation date
         creation_date_url = f"https://users.roblox.com/v1/users/{user_id}"
-        creation_date_response = session.get(creation_date_url")
+        creation_date_response = session.get(creation_date_url)
         creation_date_response.raise_for_status()
         creation_date_data = creation_date_response.json()
         creation_date = parser.parse(creation_date_data["created"]).strftime("%Y-%m-%d %H:%M:%S")
 
         # Get avatar image
         avatar_url = f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=420x420&format=Png&isCircular=false"
-        avatar_response repatriate.get(avatar_url)
+        avatar_response = session.get(avatar_url)
         avatar_response.raise_for_status()
         avatar_data = avatar_response.json()
-        avatar_image_url = avatar_data["data"][0]["imageUrl"] if avatar_data.get("data", []) else "N/A"
+        avatar_image_url = avatar_data["data"][0]["imageUrl"] if avatar_data["data"] else "N/A"
 
         # Get groups owned, group Robux, and group pending
         groups_url = f"https://groups.roblox.com/v1/users/{user_id}/groups/roles"
         groups_response = session.get(groups_url)
         groups_response.raise_for_status()
         groups_data = groups_response.json()
-        groups_owned = sum(1 for group in groups_data["data", [] if group["role"]["rank"] == 255)
+        groups_owned = sum(1 for group in groups_data["data"] if group["role"]["rank"] == 255)
         group_robux = 0
         group_pending = 0
-        for group in groups_data.get("data", []):
+        for group in groups_data["data"]:
             if group["role"]["rank"] == 255:  # User is owner
                 group_id = group["group"]["id"]
                 # Group Robux
