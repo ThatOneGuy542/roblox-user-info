@@ -1,44 +1,118 @@
-from flask import Flask, render_template, request
+from flask import Flask, request, render_template
 import requests
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    if request.method == 'POST':
-        cookie = request.form['cookie']
-        try:
-            # Fetch user data using cookie
-            headers = {'Cookie': f'.ROBLOSECURITY={cookie}'}
-            
-            # Get user ID
-            user_info = requests.get('https://users.roblox.com/v1/users/authenticated', headers=headers).json()
-            user_id = user_info['id']
-            
-            # Get user profile (username, display name, etc.)
-            profile = requests.get(f'https://users.roblox.com/v1/users/{user_id}', headers=headers).json()
-            
-            # Get Robux balance
-            robux = requests.get('https://economy.roblox.com/v1/user/currency', headers=headers).json()['robux']
-            
-            # Get Robux spent summary (potentially problematic)
-            summary = requests.get('https://economy.roblox.com/v1/users/{user_id}/transaction-totals?timeFilter=Year', headers=headers).json()
-            robux_spent = summary.get('spentRobux', 0)  # This may be incorrect
-            
-            # Get recently played games (potentially problematic)
-            games = requests.get(f'https://games.roblox.com/v1/users/{user_id}/games', headers=headers).json()['data']
-            recent_games = [game['name'] for game in games[:5]]
-            
-            # Other data (avatar, premium status, etc.)
-            avatar = requests.get(f'https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=420x420&format=Png').json()['data'][0]['imageUrl']
-            premium = requests.get(f'https://premiumfeatures.roblox.com/v1/users/{user_id}/validate-membership', headers=headers).json()['isPremium']
-            
-            # Render results
-            return render_template('result.html', username=profile['name'], display_name=profile['displayName'],
-                                 robux=robux, robux_spent=robux_spent, recent_games=recent_games, avatar=avatar, premium=premium)
-        except Exception as e:
-            return render_template('index.html', error=f"Invalid cookie or API error: {str(e)}")
-    return render_template('index.html')
+def get_user_info(cookie):
+    try:
+        session = requests.Session()
+        session.cookies[".ROBLOSECURITY"] = cookie
 
-if __name__ == '__main__':
+        # Get user profile
+        profile_url = "https://users.roblox.com/v1/users/authenticated"
+        profile_response = session.get(profile_url)
+        profile_response.raise_for_status()
+        profile_data = profile_response.json()
+        user_id = profile_data["id"]
+        username = profile_data["name"]
+        display_name = profile_data["displayName"]
+
+        # Get Robux balance
+        robux_url = "https://economy.roblox.com/v1/user/currency"
+        robux_response = session.get(robux_url)
+        robux_response.raise_for_status()
+        robux_data = robux_response.json()
+        robux_balance = robux_data["robux"]
+
+        # Get Robux spent (past year)
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=365)
+        transactions_url = f"https://economy.roblox.com/v2/users/{user_id}/transactions?transactionType=Purchase&limit=100"
+        transactions_response = session.get(transactions_url)
+        transactions_response.raise_for_status()
+        transactions_data = transactions_response.json()
+        robux_spent = 0
+        for tx in transactions_data.get("data", []):
+            if tx["currency"]["type"] == "Robux" and tx["currency"]["amount"] < 0:
+                tx_date = datetime.strptime(tx["created"], "%Y-%m-%dT%H:%M:%S.%fZ")
+                if start_date <= tx_date <= end_date:
+                    robux_spent += abs(tx["currency"]["amount"])
+
+        # Get recently played games (presence-based)
+        presence_url = "https://presence.roblox.com/v1/presence/users"
+        presence_response = session.post(presence_url, json={"userIds": [user_id]})
+        if presence_response.status_code == 429:
+            recent_games = ["Rate limit exceeded, try again later"]
+        else:
+            presence_response.raise_for_status()
+            presence_data = presence_response.json()
+            last_game = presence_data["userPresences"][0].get("lastLocation", "No recent games")
+            recent_games = [last_game] if last_game != "No recent games" else ["No recent games"]
+
+        # Get premium status
+        premium_url = f"https://premiumfeatures.roblox.com/v1/users/{user_id}/validate-membership"
+        premium_response = session.get(premium_url)
+        premium_status = "Yes" if premium_response.status_code == 200 else "No"
+
+        # Get creation date
+        creation_date_url = f"https://users.roblox.com/v1/users/{user_id}"
+        creation_date_response = session.get(creation_date_url)
+        creation_date_response.raise_for_status()
+        creation_date_data = creation_date_response.json()
+        creation_date = datetime.strptime(creation_date_data["created"], "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%Y-%m-%d %H:%M:%S")
+
+        # Get avatar image
+        avatar_url = f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=420x420&format=Png&isCircular=false"
+        avatar_response = session.get(avatar_url)
+        avatar_response.raise_for_status()
+        avatar_data = avatar_response.json()
+        avatar_image_url = avatar_data["data"][0]["imageUrl"] if avatar_data["data"] else "N/A"
+
+        # Get groups owned and group Robux
+        groups_url = f"https://groups.roblox.com/v1/users/{user_id}/groups/roles"
+        groups_response = session.get(groups_url)
+        groups_response.raise_for_status()
+        groups_data = groups_response.json()
+        groups_owned = sum(1 for group in groups_data["data"] if group["role"]["rank"] == 255)
+        group_robux = 0
+        for group in groups_data["data"]:
+            if group["role"]["rank"] == 255:  # User is owner
+                group_id = group["group"]["id"]
+                group_economy_url = f"https://economy.roblox.com/v1/groups/{group_id}/currency"
+                group_economy_response = session.get(group_economy_url)
+                if group_economy_response.status_code == 200:
+                    group_economy_data = group_economy_response.json()
+                    group_robux += group_economy_data.get("robux", 0)
+
+        return {
+            "username": username,
+            "display_name": display_name,
+            "robux": robux_balance,
+            "robux_spent": robux_spent,
+            "premium": premium_status,
+            "creation_date": creation_date,
+            "user_id": user_id,
+            "avatar_url": avatar_image_url,
+            "groups_owned": groups_owned,
+            "group_robux": group_robux,
+            "recent_games": recent_games,
+            "error": None
+        }
+    except requests.exceptions.HTTPError as e:
+        return {"error": f"Error fetching data: {e}. The cookie may be invalid."}
+    except Exception as e:
+        return {"error": f"An unexpected error occurred: {e}"}
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    if request.method == "POST":
+        cookie = request.form.get("cookie").strip()
+        if not cookie:
+            return render_template("index.html", error="Please enter a valid cookie.")
+        result = get_user_info(cookie)
+        return render_template("result.html", result=result)
+    return render_template("index.html", error=None)
+
+if __name__ == "__main__":
     app.run(debug=True)
