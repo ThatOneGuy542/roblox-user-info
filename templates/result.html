@@ -26,8 +26,8 @@
                             <span class="value">{{ result.robux }}</span>
                         </div>
                         <div class="stat slide-in">
-                            <span class="label">Summary</span>
-                            <span class="value">{{ result.robux_summary }}</span>
+                            <span class="label">Robux Pending</span>
+                            <span class="value">{{ result.robux_pending }}</span>
                         </div>
                         <div class="stat slide-in">
                             <span class="label">Groups Owned</span>
@@ -36,6 +36,10 @@
                         <div class="stat slide-in">
                             <span class="label">Group Robux</span>
                             <span class="value">{{ result.group_robux }}</span>
+                        </div>
+                        <div class="stat slide-in">
+                            <span class="label">Group Pending</span>
+                            <span class="value">{{ result.group_pending }}</span>
                         </div>
                         <div class="stat slide-in">
                             <span class="label">Premium</span>
@@ -49,14 +53,18 @@
                             <span class="label">User ID</span>
                             <span class="value">{{ result.user_id }}</span>
                         </div>
-                    </div>
-                    <div class="section slide-in">
-                        <h3>Current Activity</h3>
-                        <ul>
-                            {% for activity in result.current_activity %}
-                                <li>{{ activity }}</li>
-                            {% endfor %}
-                        </ul>
+                        <div class="stat slide-in">
+                            <span class="label">Credit Balance ($)</span>
+                            <span class="value">{{ result.credit_balance }}</span>
+                        </div>
+                        <div class="stat slide-in">
+                            <span class="label">Email Verified</span>
+                            <span class="value">{{ result.email_verified }}</span>
+                        </div>
+                        <div class="stat slide-in">
+                            <span class="label">RAP</span>
+                            <span class="value">{{ result.rap }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
